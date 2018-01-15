@@ -5,6 +5,7 @@ from collections import OrderedDict
 start_time = time.time()
 TARGET_TAG = { "Live_In" : 1, "No_Tag" : 0 }
 LOCATION_NER = { 'GPE', 'FACILITY', 'LOC' }
+LOCATION_ALTER_NER = { 'ORG' }
 PERSON_NER = { 'PERSON' }
 
 def passed_time(previous_time):
@@ -55,6 +56,21 @@ class Annotation:
                 words["ner"] = words_ent[8]
             self.sentences[id_number]["words"][int(words_ent[0])] = words
 
+    def filter_person(self, words, id_word):
+        person = []
+        j = id_word-1
+        while j > 0 and ("ner" not in words[j] or words[j]["ner"] not in PERSON_NER):
+            j-=1
+        k = j
+        while k > 0 and "ner" in words[k] and words[k]["ner"] in PERSON_NER:
+            k-=1
+        if k == 0 or "ner" not in words[k] or words[k]["ner"] not in PERSON_NER:
+            k += 1
+        while k <= j:
+            person.append(words[k]["word"])
+            k += 1
+        return person
+
     def create_annotations(self):
         for id_sent, dic in self.sentences.iteritems():
             location = []
@@ -66,11 +82,19 @@ class Annotation:
             for id_word, word in words.iteritems():
                 if "ner" in word:
                     if word["ner"] in LOCATION_NER:
-                        found_location = True
-                        location.append(word["word"])
+                        if id_word == 1 or words[id_word-1]["lemma"] != "to":
+                            found_location = True
+                            location.append(word["word"])
                     elif word["ner"] in PERSON_NER:
+                        if id_word > 1 and words[id_word-1]["pos"] == "IN":
+                            person = []
                         found_person = True
                         person.append(word["word"])
+                elif word["word"] == "of":
+                    person = self.filter_person(words, id_word)
+                    found_person = len(person) > 0
+                elif found_person and word["word"] == "." and "ner" in words[id_word-1] and words[id_word-1]["ner"] in PERSON_NER:
+                    person[-1] += "."
             if found_location and found_person:
                 if id_sent not in self.annotations:
                     self.annotations[id_sent] = OrderedDict()

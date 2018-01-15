@@ -1,8 +1,9 @@
 import sys
 import time
+import random
 
 start_time = time.time()
-
+ERROR_ANALYS = True
 TARGET_TAG = 'Live_In'
 
 def passed_time(previous_time):
@@ -25,18 +26,37 @@ def read_annotation_files(name_file):
                 annotations[id_text]["location"] = location
     return annotations
 
+def error_analysis(mistakes):
+    print "="*20
+    print "ANALISIS OF ERRORS"
+    print "="*20
+    to_analyse = random.sample(mistakes, 5)
+    for errors in to_analyse:
+        print "Sentence " + str(errors[0])
+        print "Gold : "
+        print errors[1]
+        print "Pred : "
+        print errors[2]
+
+
 def precision(gold_data, pred_data):
     good = 0.0
     bad = 0.0
+    mistakes = []
     for id_sentence, relation in gold_data.iteritems():
         if id_sentence in pred_data:
             if relation["person"] == pred_data[id_sentence]["person"] and relation["location"] == pred_data[id_sentence]["location"]:
                 good += 1
             else:
                 bad += 1
+                mistakes.append([id_sentence, relation, pred_data[id_sentence]])
         else:
             bad += 1
+    if ERROR_ANALYS:
+        error_analysis(mistakes)
     return good/(good+bad)
+
+# TODO the recall
 
 if __name__ == '__main__':
     gold_file = sys.argv[1]
