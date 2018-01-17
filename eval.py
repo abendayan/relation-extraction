@@ -21,12 +21,13 @@ def read_annotation_files(name_file):
                 person, location = sentence.split(TARGET_TAG)
                 person = person.replace("\t", "")
                 location = location.replace("\t", "")
-                annotations.append(id_text + " " +  person + " " + location )
+                annotations.append(id_text + " " +  person + " " + TARGET_TAG + " " + location )
                 # annotations[id_text]["person"] = person
                 # annotations[id_text]["location"] = location
     return annotations
 
 def error_analysis(mistakes):
+    # to_analyse = mistakes[:5]
     to_analyse = random.sample(mistakes, 5)
     for errors in to_analyse:
         print "Relation :"

@@ -54,6 +54,8 @@ class Annotation:
             words["bio"] = words_ent[7]
             if words["bio"] != 'O':
                 words["ner"] = words_ent[8]
+            else:
+                words["ner"] = ""
             self.sentences[id_number]["words"][int(words_ent[0])] = words
 
     def filter_person(self, words, id_word):
@@ -71,6 +73,11 @@ class Annotation:
             k += 1
         return person
 
+    def search_person_connected(self, words, person, parent):
+        for id_word, word in words.iteritems():
+            if word["parent"] == parent and "ner" in word and word["ner"] in PERSON_NER:
+                person.insert(0, word["word"])
+
     def create_annotations(self):
         for id_sent, dic in self.sentences.iteritems():
             location = []
@@ -79,22 +86,79 @@ class Annotation:
             words = dic["words"]
             found_location = False
             found_person = False
+            found = False
             for id_word, word in words.iteritems():
-                if "ner" in word:
-                    if word["ner"] in LOCATION_NER:
-                        if id_word == 1 or words[id_word-1]["lemma"] != "to":
+                if word["word"] in ["home", "live"]:
+                    for id, word_test in words.iteritems():
+                        if id > id_word:
+                            break
+                        if word_test["ner"] in PERSON_NER:
+                            person = [word_test["word"]]
+                            self.search_person_connected(words, person, id)
+                            found_person = True
+                    location = []
+                    for id in range(id_word, len(words)):
+                        if words[id]["ner"] in LOCATION_NER:
+                            location.append(words[id]["word"])
                             found_location = True
-                            location.append(word["word"])
-                    elif word["ner"] in PERSON_NER:
-                        if id_word > 1 and words[id_word-1]["pos"] == "IN":
-                            person = []
-                        found_person = True
-                        person.append(word["word"])
-                elif word["word"] == "of":
-                    person = self.filter_person(words, id_word)
-                    found_person = len(person) > 0
-                elif found_person and word["word"] == "." and "ner" in words[id_word-1] and words[id_word-1]["ner"] in PERSON_NER:
-                    person[-1] += "."
+                    break
+                elif word["ner"] in LOCATION_NER and not found_person:
+                    location.append(word["word"])
+                    found_location = True
+                elif word["ner"] in PERSON_NER and found_location:
+                    if id_word + 1 in words and words[id_word+1]["word"] == "'s":
+                        location = []
+                        found_location = False
+                    person = [word["word"]]
+                    self.search_person_connected(words, person, id_word)
+                    found_person = True
+
+
+
+                # elif "ner" in word:
+                #     if word["ner"] in LOCATION_NER:
+                #         if found_person:
+                #             location.append(word["word"])
+                #         else:
+                #             found_location = True
+                #             parent = word["parent"]
+                #             found = False
+                #             while parent != 0:
+                #                 if "ner" in words[parent]:
+                #                     if words[parent]["ner"] in PERSON_NER:
+                #                         found = True
+                #                         break
+                #                 parent = words[parent]["parent"]
+                #             if found:
+                #                 location.append(word["word"])
+                #                 found_person = True
+                #                 person = [words[parent]["word"]]
+                #                 self.search_person_connected(words, person, parent)
+                        # if id_word == 1 or words[id_word-1]["lemma"] != "to":
+                        #     found_location = True
+                        #     location.append(word["word"])
+                        #     parent = word["parent"]
+                        #     found = False
+                        #     while parent != 0:
+                        #         if "ner" in words[parent] and words[parent]["ner"] in PERSON_NER:
+                        #             found = True
+                        #             break
+                        #         parent = words[parent]["parent"]
+                        #
+                        #     if found:
+                        #         found_person = True
+                        #         person = [words[parent]["word"]]
+                        #         self.search_person_connected(words, person, parent)
+                        #         if id_sent == 1132:
+                        #             print person
+                    # elif word["ner"] in PERSON_NER:
+                    #     # if id_word > 1 and words[id_word-1]["pos"] == "IN":
+                    #     #     person = []
+                    #     found_person = True
+                    #     person.append(word["word"])
+                # elif word["word"] == "of":
+                #     person = self.filter_person(words, id_word)
+                #     found_person = len(person) > 0
             if found_location and found_person:
                 if id_sent not in self.annotations:
                     self.annotations[id_sent] = OrderedDict()
