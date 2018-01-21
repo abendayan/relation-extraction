@@ -2,13 +2,49 @@
 > Adele Bendayan - 336141056
 
 ## Process
-I started with a rule based system.
+I first tried a rule based system, but I was stuck on low accuracy, so I tried a feature extraction system.
 
-Rule:
-1. Find the connection according to the dependency graph. When we get a location, find a person that is parent to it
-**Precision on test: 41,5%**;
-**Recall on test: 20,7%**
+**Precision accuracy: 76,6%**
+**Recall accuracy: 51,1%**
 
+Adding a check to see that the words are person-location change the accuracy to:
+**Precision accuracy: 88,4%**
+**Recall accuracy: 45,8%**
+
+Added NORP in location
+**Prec accuracy: 79,2%**
+**Recall accuracy: 48,8%**
+
+Not JJ
+**Prec accuracy: 88,57%**
+**Recall accuracy: 46,5**
+
+Pos is NN*:
+**Prec accuracy: 92,3%**
+**Recall accuracy: 45,0%**
+
+When looking at the precision errors, I realized that some of the errors are "." in the end, I decided to ignore them.
+What is missing are stuff like:
+Prince + name
+Mrs + name
+
+**Prec accuracy: 95,9%**
+**Recall accuracy: 34,4%**
+
+Added cities
+
+**Prec accuracy: 96,2%**
+**Recall accuracy: 39,69%**
+
+Added wordnet:
+
+**Prec accuracy: 92,9%**
+**Recall accuracy: 40,4%**
+
+clean annotations:
+
+**Prec accuracy: 94,7%**
+**Recall accuracy: 40,9%**
 
 ### Analysis
 #### Errors on rules

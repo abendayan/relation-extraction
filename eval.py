@@ -28,7 +28,8 @@ def read_annotation_files(name_file):
 
 def error_analysis(mistakes):
     # to_analyse = mistakes[:5]
-    to_analyse = random.sample(mistakes, 5)
+    to_extract = min(5, len(mistakes))
+    to_analyse = random.sample(mistakes, to_extract)
     for errors in to_analyse:
         print "Relation :"
         print errors
@@ -39,7 +40,10 @@ def precision(gold_data, pred_data):
     bad = 0.0
     mistakes = []
     for pred in pred_data:
-        if pred in gold_data:
+        left, right = pred.split(" " + TARGET_TAG)
+        other_pred = left + ". " + TARGET_TAG + right
+        # print other_pred
+        if pred in gold_data or pred + "." in gold_data or other_pred in gold_data:
             good += 1
         else:
             bad += 1
@@ -56,7 +60,13 @@ def recall(gold_data, pred_data):
     bad = 0.0
     mistakes = []
     for gold in gold_data:
-        if gold in pred_data:
+        left, right = gold.split(" " + TARGET_TAG)
+        if left[-1] == ".":
+            left = left[:-1]
+            other_gold = left + " " + TARGET_TAG + right
+        else:
+            other_gold = left + ". " + TARGET_TAG + right
+        if gold in pred_data  or gold + "." in pred_data or other_gold in pred_data:
             good += 1
         else:
             bad += 1
@@ -78,3 +88,6 @@ if __name__ == '__main__':
     print "Precision is " + str(prec)
     rec = recall(gold_data, pred_data)
     print "Recall is " + str(rec)
+    f1 = (2*prec*rec)/(prec+rec)
+    print "="*20
+    print "F1 is " + str(f1)
