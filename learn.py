@@ -8,6 +8,7 @@ import pickle
 import numpy as np
 import scipy
 import pdb
+from sklearn.externals import joblib
 
 start_time = time.time()
 TARGET_TAG = "Live_In"
@@ -82,7 +83,9 @@ def build_datas(annotations, sentences):
 
 
 def save_model(clf, features):
-    pickle.dump((clf, features), open('model.pkl', 'wb'))
+    joblib.dump(clf, 'model.pkl')
+    pickle.dump(features, open('feature.pkl', 'wb'))
+    # pickle.dump((clf, features), open('model.pkl', 'wb'))
 
 if __name__ == '__main__':
     corpus_file = sys.argv[1]

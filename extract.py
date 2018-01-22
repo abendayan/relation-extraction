@@ -8,6 +8,7 @@ import pickle
 import itertools
 import scipy
 import pdb
+from sklearn.externals import joblib
 start_time = time.time()
 TARGET_TAG = { 5: 'OrgBased_In' ,4: 'Located_In', 3: 'Work_For', 2: 'Kill', 1 : "Live_In", 0 : "Other_Tag" }
 TAG_TO_PREDICT = "Live_In"
@@ -25,11 +26,8 @@ def create_annotations_file(output_file, predicted, tagg_info):
     for i, predict in enumerate(predicted):
         sentence, chunk = tagg_info[i]
         left, right = chunk
-        if sentence == 119:
-            print predict
-            print ut.chunk_phrase(left)
-            print ut.chunk_phrase(right)
-        if TARGET_TAG[predict] == TAG_TO_PREDICT and (ut.entity_to_loc(right[-1])=="LOCATION" or ut.in_gazette(ut.chunk_phrase(right))):
+        if TARGET_TAG[predict] == TAG_TO_PREDICT:
+             # and (ut.entity_to_loc(right[-1])=="LOCATION" or ut.in_gazette(ut.chunk_phrase(right))):
                 # print sentence
                 # print ut.chunk_phrase(left)
                 # # if sentence == 1147:
@@ -77,12 +75,13 @@ if __name__ == '__main__':
     input_file = sys.argv[1]
     output_file = sys.argv[2]
     type_input = input_file.split(".")[-1]
-    if type_input != "processed":
+    if type_input != "txt":
         print "The input file " + input_file + " is not in the format .processed"
         sys.exit(0)
     sentences = ut.build_corpus(open(input_file, "r").read().split("\n"))
     print "Corpus read"
-    clf, features_learn = pickle.load(open('model.pkl', 'rb'))
+    clf = joblib.load('model.pkl')
+    features_learn = pickle.load(open('feature.pkl', 'rb'))
     features_ix = { feat:id for id, feat in features_learn.iteritems() }
     features, tagging_info = build_datas(sentences, features_learn)
     predicted = clf.predict(features)

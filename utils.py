@@ -3,6 +3,8 @@ from collections import OrderedDict
 from nltk.corpus import wordnet as wn
 import pdb
 import random
+import spacy
+nlp = spacy.load('en')
 
 countriesJson = json.load(open('countries.json'))
 usJson = json.load(open('us.json'))
@@ -22,19 +24,47 @@ cities = {}
 for c in citiesJson:
     cities[c["name"].lower().replace(" ", "-")] = 1
 
-LOCATIONS = [ 'GSP', 'FACILITY', 'LOC', 'NORP', 'ORG', 'GPE']
+LOCATIONS = [ 'ORG']
 PERSON = ['PERSON']
-def build_corpus(words):
-    sentence = []
-    sentences = {}
-    for word in words:
-        if word != "":
-            sentence.append(word)
-        else:
-            if sentence != []:
-                build_sentence(sentence, sentences)
-            sentence = []
-    return sentences
+def build_corpus(sentences):
+    sentences_dic = {}
+    for sentence in sentences:
+        if sentence != "":
+            id_number = int(sentence.split("\t")[0].replace("sent", ""))
+            parsed = nlp(unicode(sentence.split("\t")[1]))
+            sentences_dic[id_number] = OrderedDict()
+            sentences_dic[id_number]["text"] = sentence.split("\t")[1]
+            sentences_dic[id_number]["words"] = {}
+            # sentenceData = []
+            # sentenceDic = {}
+
+            for i, word in enumerate(parsed):
+                head_id = word.head.i + 1  # we want ids to be 1 based
+                if word == word.head:  # and the ROOT to be 0.
+                    assert (word.dep_ == "ROOT"), word.dep_
+                    head_id = 0  # root
+
+                words = {
+                    "id": word.i + 1,
+                    "word": word.text,
+                    "lemma": word.lemma_,
+                    "pos": word.pos_,
+                    "tag": word.tag_,
+                    "parent": head_id,
+                    "dependency": word.dep_,
+                    "bio": word.ent_iob_,
+                    "ner": word.ent_type_
+                }
+                sentences_dic[id_number]["words"][words["id"]] = words
+        #     guh
+    # for word in words:
+    #     if word != "":
+    #         sentence.append(word)
+    #     else:
+    #         if sentence != []:
+    #             build_sentence(sentence, sentences)
+    #         sentence = []
+    return sentences_dic
 
 def build_sentence(sentence, sentences):
     id_text = sentence[0].replace("#id: sent", "")
@@ -138,6 +168,17 @@ def in_gazette(word):
     word = word.lower().replace(" ", "-")
     return word.lower() in countries or word.lower() in states or word.lower() in cities
 
+def is_country(word):
+    word = word.lower().replace(" ", "-")
+    return word in countries
+
+def is_city(word):
+    word = word.lower().replace(" ", "-")
+    return word in cities
+
+def is_state(word):
+    word = word.lower().replace(" ", "-")
+    return word in states
 def entity_to_loc(entity):
     syns = wn.synsets(entity["word"], 'n')
     without_last = entity["lemma"][:-1].replace(" ", "-")
@@ -160,6 +201,11 @@ def entity_to_pers(entity):
         entity = "PERSON"
     return entity
 
+def name_or_entity(word):
+    if word["pos"].startswith("NN"):
+        return "NN"
+    return word["pos"]
+
 class Features:
     def __init__(self, m1, m2, sentence):
         self.m1 = m1
@@ -167,113 +213,203 @@ class Features:
         self.feat = []
         self.build_features(sentence)
     def build_features(self, sentence):
-        self.feat.append(chunk_phrase(self.m1))
-        self.feat.append(chunk_phrase(self.m1).lower())
-        self.feat.append(chunk_phrase(self.m2))
-        self.feat.append(chunk_phrase(self.m2).lower())
-        # self.feat.append(chunk_phrase(self.m1)+ "-" +chunk_phrase(self.m2))
-
+        # entity based features
+        # entity type 1
+        self.feat.append(self.m1[-1]["ner"])
+        # self.feat.append(entity_to_pers(self.m1[-1]["ner"]))
+        # entity 1 head
         self.feat.append(self.m1[-1]['word'])
-        self.feat.append(self.m1[-1]['word'].lower())
+        # entity type 2
+        self.feat.append(self.m2[-1]["ner"])
+        # self.feat.append(entity_to_loc(self.m2[-1]))
+        # entity 2 head
         self.feat.append(self.m2[-1]['word'])
-        self.feat.append(self.m2[-1]['word'].lower())
-        self.feat.append(self.m1[-1]['word'] + "-" + self.m2[-1]['word'])
-        self.feat.append(self.m1[-1]['word'].lower() + "-" + self.m2[-1]['word'].lower())
-        # self.feat.append(self.m1[-1]['tag'])
-        # self.feat.append(self.m2[-1]['tag'])
-        bags_bigrams = []
-        bags = []
-        if len(self.m1) > 1:
-            for word in self.m1:
-                bags.append(word['word'])
-                bags.append(word['word'].lower())
-        bags_bigrams.extend(bags)
-        bags = []
-        if len(self.m2) > 1:
-            for word in self.m2:
-                bags.append(word['word'])
-                bags.append(word['word'].lower())
-        bags_bigrams.extend(bags)
-        self.feat.extend(bags_bigrams)
-        m1 = self.m1[0]
-        m2 = self.m2[0]
-        if m1["id"]-1 in sentence:
-            self.feat.append("Left"+sentence[m1["id"]-1]["word"])
-        else:
-            self.feat.append("Start")
-        if m1["id"]+1 in sentence:
-            self.feat.append("Right"+sentence[m1["id"]+1]["word"])
-        else:
-            self.feat.append("End")
-        if m2["id"]-1 in sentence:
-            self.feat.append("Left"+sentence[m2["id"]-1]["word"])
-        else:
-            self.feat.append("Start")
-        if m2["id"]+1 in sentence:
-            self.feat.append("Right"+sentence[m2["id"]+1]["word"])
-        else:
-            self.feat.append("End")
-        entity_left = entity_to_pers(self.m1[-1]["ner"])
-        entity_right = entity_to_loc(self.m2[-1])
-        self.feat.append(entity_left)
-        self.feat.append(entity_right)
-        if chunk_phrase(self.m2).lower().replace(" ", "-") in cities:
-            self.feat.append("City"+self.m2[-1]["lemma"])
-        if chunk_phrase(self.m1).lower().replace(" ", "-") in cities:
-            self.feat.append("City"+self.m1[-1]["lemma"])
-        if chunk_phrase(self.m2).lower().replace(" ", "-") in countries:
-            self.feat.append("Country"+self.m2[-1]["lemma"])
-        if chunk_phrase(self.m1).lower().replace(" ", "-") in countries:
-            self.feat.append("Country"+self.m1[-1]["lemma"])
-        if chunk_phrase(self.m2).lower().replace(" ", "-") in states:
-            self.feat.append("State"+self.m2[-1]["lemma"])
-        if chunk_phrase(self.m1).lower().replace(" ", "-") in states:
-            self.feat.append("State"+self.m1[-1]["lemma"])
-        for m2 in self.m2:
-            self.feat.append(m2["word"] + str(in_gazette(m2["word"])))
-        for m1 in self.m1:
-            self.feat.append(m1["word"] + str(in_gazette(m1["word"])))
-        self.feat.append(entity_left + "-" + entity_right)
-        self.feat.append(chunk_phrase(self.m1) + str(chunk_pos(self.m1, "NN")))
-        self.feat.append(chunk_phrase(self.m2) + str(chunk_pos(self.m2, "NN")))
-        self.feat.append(self.m1[-1]["tag"])
-        self.feat.append(self.m2[-1]["tag"])
-        start = False
-        between = []
-        pattern = []
-        for id, word in sentence.iteritems():
-            if word["word"] in {"home", "live", "of"}:
-                pattern.append("pattern" + word["word"])
-            if word == self.m2[0]:
-                break
-            if start:
-                between.append("between"+word["word"])
-            if not start and word == self.m1[-1]:
-                start = True
-        start = False
-        # between.extend(find_ngrams(between, 2))
-        # between.extend(find_ngrams(between, 3))
-        self.feat.extend(between)
-        self.feat.extend(pattern)
-        for id, word in sentence.iteritems():
-            if word == self.m2[0]:
-                self.feat.append(word["pos"])
-                break
-            if start:
-                self.feat.append(word["pos"])
-            if not start and word == self.m1[-1]:
-                start = True
-                self.feat.append(word["pos"])
+        # concatenate types
+        self.feat.append(self.m1[-1]["ner"] + self.m2[-1]["ner"])
+        # concatenate head
+        # self.feat.append(self.m1[-1]['word'] + self.m2[-1]['word'])
 
+        for word in self.m1:
+            self.feat.append(word["pos"])
+        for word in self.m2:
+            self.feat.append(word["pos"])
+        # word based features
+        start = False
+        before1 = None
+        before2 = None
+        after1 = None
+        after2 = None
+        syntact_chunk = []
+        for id, word in sentence.iteritems():
+            if word == self.m2[0]:
+                start = False
+                if id-1 in sentence:
+                    before2 = sentence[id-1]["word"]
+            if word == self.m2[-1]:
+                if id+1 in sentence:
+                    after2 = sentence[id+1]["word"]
+                break
+            if start:
+                self.feat.append("Between+"+word["word"])
+                syntact_chunk.append(word["pos"])
+            if word == self.m1[0]:
+                if id-1 in sentence:
+                    before1 = sentence[id-1]["word"]
+            if word == self.m1[-1]:
+                if id+1 in sentence:
+                    after1 = sentence[id+1]["word"]
+                start = True
+        for syntact in syntact_chunk:
+            self.feat.append("Base"+syntact)
+        # word before entity 1
+        if before1 is None:
+            self.feat.append("BeforeEnt1Start")
+        else:
+            self.feat.append("BeforeEnt1"+before1)
+        if before2 is None:
+            self.feat.append("BeforeEnt2Start")
+        else:
+            self.feat.append("BeforeEnt2"+before2)
+
+        if after1 is None:
+            self.feat.append("AfterEnt1End")
+        else:
+            self.feat.append("AfterEnt1"+after1)
+        if after2 is None:
+            self.feat.append("AfterEnt2End")
+        else:
+            self.feat.append("AfterEnt2"+after2)
+
+        # entity level
+        self.feat.append(name_or_entity(self.m1[-1]))
+        self.feat.append(name_or_entity(self.m2[-1]))
+
+        # synonyms
         syns = wn.synsets(chunk_phrase(self.m1), 'n')
-        for ss in syns:
-            for lema in ss.lemma_names():
-                self.feat.append("Syn"+lema)
-                self.feat.append("Syn"+lema.capitalize())
+        if len(syns) > 0:
+            list_sim = [lemma.name() for synset in syns[0].hyponyms() for lemma in synset.lemmas()]
+            for sim in list_sim:
+                self.feat.append(sim)
         syns = wn.synsets(chunk_phrase(self.m2), 'n')
-        for ss in syns:
-            for lema in ss.lemma_names():
-                self.feat.append("Syn"+lema)
-                self.feat.append("Syn"+lema.capitalize())
+        if len(syns) > 0:
+            list_sim = [lemma.name() for synset in syns[0].hyponyms() for lemma in synset.lemmas()]
+            for sim in list_sim:
+                self.feat.append(sim)
+        dep = self.m1[0]["parent"]
+        while dep != 0 and dep != self.m2[-1]["id"]:
+            self.feat.append(sentence[dep]["word"])
+            dep = sentence[dep]["parent"]
+        dep = self.m2[-1]["parent"]
+        while dep != 0 and dep != self.m1[0]["id"]:
+            self.feat.append(sentence[dep]["word"])
+            dep = sentence[dep]["parent"]
+        # self.feat.append(chunk_phrase(self.m1))
+        # self.feat.append(chunk_phrase(self.m1).lower())
+        # self.feat.append(chunk_phrase(self.m2))
+        # self.feat.append(chunk_phrase(self.m2).lower())
+        # # self.feat.append(chunk_phrase(self.m1)+ "-" +chunk_phrase(self.m2))
+        #
+        # self.feat.append(self.m1[-1]['word'])
+        # self.feat.append(self.m1[-1]['word'].lower())
+        # self.feat.append(self.m2[-1]['word'])
+        # self.feat.append(self.m2[-1]['word'].lower())
+        # self.feat.append(self.m1[-1]['word'] + "-" + self.m2[-1]['word'])
+        # self.feat.append(self.m1[-1]['word'].lower() + "-" + self.m2[-1]['word'].lower())
+        # # self.feat.append(self.m1[-1]['tag'])
+        # # self.feat.append(self.m2[-1]['tag'])
+        # bags_bigrams = []
+        # bags = []
+        # if len(self.m1) > 1:
+        #     for word in self.m1:
+        #         bags.append(word['word'])
+        #         bags.append(word['word'].lower())
+        # bags_bigrams.extend(bags)
+        # bags = []
+        # if len(self.m2) > 1:
+        #     for word in self.m2:
+        #         bags.append(word['word'])
+        #         bags.append(word['word'].lower())
+        # bags_bigrams.extend(bags)
+        # self.feat.extend(bags_bigrams)
+        # m1 = self.m1[0]
+        # m2 = self.m2[0]
+        # if m1["id"]-1 in sentence:
+        #     self.feat.append("Left"+sentence[m1["id"]-1]["word"])
+        # else:
+        #     self.feat.append("Start")
+        # if m1["id"]+1 in sentence:
+        #     self.feat.append("Right"+sentence[m1["id"]+1]["word"])
+        # else:
+        #     self.feat.append("End")
+        # if m2["id"]-1 in sentence:
+        #     self.feat.append("Left"+sentence[m2["id"]-1]["word"])
+        # else:
+        #     self.feat.append("Start")
+        # if m2["id"]+1 in sentence:
+        #     self.feat.append("Right"+sentence[m2["id"]+1]["word"])
+        # else:
+        #     self.feat.append("End")
+        # entity_left = entity_to_pers(self.m1[-1]["ner"])
+        # entity_right = entity_to_loc(self.m2[-1])
+        # self.feat.append(entity_left)
+        # self.feat.append(entity_right)
+        # if chunk_phrase(self.m2).lower().replace(" ", "-") in cities:
+        #     self.feat.append("City"+chunk_phrase(self.m2))
+        # if chunk_phrase(self.m1).lower().replace(" ", "-") in cities:
+        #     self.feat.append("City"+chunk_phrase(self.m1))
+        # if chunk_phrase(self.m2).lower().replace(" ", "-") in countries:
+        #     self.feat.append("Country"+chunk_phrase(self.m2))
+        # if chunk_phrase(self.m1).lower().replace(" ", "-") in countries:
+        #     self.feat.append("Country"+chunk_phrase(self.m1))
+        # if chunk_phrase(self.m2).lower().replace(" ", "-") in states:
+        #     self.feat.append("State"+chunk_phrase(self.m2))
+        # if chunk_phrase(self.m1).lower().replace(" ", "-") in states:
+        #     self.feat.append("State"+chunk_phrase(self.m1))
+        # for m2 in self.m2:
+        #     self.feat.append(m2["word"] + str(in_gazette(m2["word"])))
+        # for m1 in self.m1:
+        #     self.feat.append(m1["word"] + str(in_gazette(m1["word"])))
+        # self.feat.append(entity_left + "-" + entity_right)
+        # self.feat.append(chunk_phrase(self.m1) + str(chunk_pos(self.m1, "NN")))
+        # self.feat.append(chunk_phrase(self.m2) + str(chunk_pos(self.m2, "NN")))
+        # self.feat.append(self.m1[-1]["tag"])
+        # self.feat.append(self.m2[-1]["tag"])
+        # start = False
+        # between = []
+        # pattern = []
+        # for id, word in sentence.iteritems():
+        #     if word["word"] in {"home", "live", "of"}:
+        #         pattern.append("pattern" + word["word"])
+        #     if word == self.m2[0]:
+        #         break
+        #     if start:
+        #         between.append("between"+word["word"])
+        #     if not start and word == self.m1[-1]:
+        #         start = True
+        # start = False
+        # # between.extend(find_ngrams(between, 2))
+        # # between.extend(find_ngrams(between, 3))
+        # self.feat.extend(between)
+        # self.feat.extend(pattern)
+        # for id, word in sentence.iteritems():
+        #     if word == self.m2[0]:
+        #         self.feat.append(word["pos"])
+        #         break
+        #     if start:
+        #         self.feat.append(word["pos"])
+        #     if not start and word == self.m1[-1]:
+        #         start = True
+        #         self.feat.append(word["pos"])
+        #
+        # syns = wn.synsets(chunk_phrase(self.m1), 'n')
+        # for ss in syns:
+        #     for lema in ss.lemma_names():
+        #         self.feat.append("Syn"+lema)
+        #         self.feat.append("Syn"+lema.capitalize())
+        # syns = wn.synsets(chunk_phrase(self.m2), 'n')
+        # for ss in syns:
+        #     for lema in ss.lemma_names():
+        #         self.feat.append("Syn"+lema)
+        #         self.feat.append("Syn"+lema.capitalize())
         if random.randint(1, 100) == 1:
             self.feat.append("UNK")
