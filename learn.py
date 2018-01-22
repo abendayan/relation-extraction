@@ -44,14 +44,8 @@ def build_datas(annotations, sentences):
     labels = []
     for id_sentence, dic in sentences.iteritems():
         sentence = dic['words']
-        # if id_sentence == 1483:
-        #     pdb.set_trace()
         chunk = itertools.permutations(ut.extract_chunks(sentence), 2)
-        # if id_sentence == 1417:
-        #     cs  = list(chunk)
-        #     pdb.set_trace()
-        #     for cpr in cs:
-        #         print cpr
+
         features_chunks = []
         size = 0
         for chunk_pair in chunk:
@@ -61,44 +55,22 @@ def build_datas(annotations, sentences):
                 m2Phrase = ut.chunk_phrase(chunk_pair[1])
                 connect = ut.AnnotConnection(m1Phrase, m2Phrase)
                 correct, label = False, 0
-                # for key in annot:
-                # if (annot.m1 in m1Phrase or m1Phrase in annot.m1) and (annot.m2 in m2Phrase or m2Phrase in annot.m2):
-                if (annot.m1 == m1Phrase or annot.m1 == m1Phrase + "." or annot.m1 == m1Phrase + " .") and (annot.m2 == m2Phrase or annot.m2 == m2Phrase + "." or annot.m2 == m2Phrase + " ."):
-                    # if ut.entity_to_pers(chunk_pair[0][-1]["ner"]) == "PERSON" and ut.entity_to_loc(chunk_pair[1][-1]) == "LOCATION":
-                        # if ut.chunk_pos(chunk_pair[1], "NN"):
+                # if (annot.m1 == m1Phrase or annot.m1 == m1Phrase + "." or annot.m1 == m1Phrase + " .") \
+                # and (annot.m2 == m2Phrase or annot.m2 == m2Phrase + "." or annot.m2 == m2Phrase + " ."):
+                if (annot.m1 in m1Phrase or m1Phrase in annot.m1) and \
+                (annot.m2 in m2Phrase or m2Phrase in annot.m2):
+                # and ut.entity_to_loc(chunk_pair[1][-1]) == "LOCATION":
                     correct, label = True, tag
 
-            # if correct:
-                # print m1Phrase, m2Phrase
-                # bfds
-                # print label
-            # if id_sentence == 857:
-            #     print m1Phrase
-            #     print m2Phrase, correct, label
                 labels.append(label)
                 feat_sent = ut.Features(chunk_pair[0], chunk_pair[1], sentence)
                 features = []
                 for feat in feat_sent.feat:
                     if feat not in features_all:
                         features_all[feat] = len(features_all)
-                        if features_all[feat] == 7649:
-                            print "==="
-                            print feat
                     features.append(features_all[feat])
                 features_array.append(features)
-                if id_sentence == 35 and correct:
-                    print m1Phrase
-                    print m2Phrase
-                    # print ut.chunk_pos(chunk_pair[0], "NN"), ut.chunk_pos(chunk_pair[1], "NN")
-                    print annot
-                    print correct, label
-                    print features
-        # for i in range(len(features_chunks), size):
-        #     features_chunks.append(0)
-        # features_array.append(np.array(features_chunks))
-        # print labels
-        # huij
-    # print features_array
+
     inflated_feats = []
     for dense in features_array:
         sparse = np.zeros(len(features_all))
@@ -125,7 +97,3 @@ if __name__ == '__main__':
     clf.fit(features, tags)
     save_model(clf, all_features)
     print "Saved model " + str(passed_time(start_time))
-    # features = Features(corpus_file, annot_file)
-    #
-    # clf = svm.LinearSVC()
-    # clf.fit(features.annotations, features.labels)
