@@ -1,7 +1,7 @@
 import json
 from collections import OrderedDict
 from nltk.corpus import wordnet as wn
-
+import pdb
 countriesJson = json.load(open('countries.json'))
 usJson = json.load(open('us.json'))
 citiesJson = json.load(open('cities.json'))
@@ -15,7 +15,7 @@ countries.append("u.s.")
 cities = {}
 for c in citiesJson:
     cities[c["name"].lower().replace(" ", "-")] = 1
-LOCATIONS = ['GPE', 'GSP', 'FACILITY', 'LOC', 'NORP']
+LOCATIONS = [ 'GSP', 'FACILITY', 'LOC', 'NORP', 'ORG']
 PERSON = ['PERSON']
 def build_corpus(words):
     sentence = []
@@ -68,17 +68,31 @@ def extract_chunks(words):
     i = 0
     chunks = []
     chunk = []
+    previous = None
     for id, word in words.iteritems():
-        if word['bio'] in {'O','B'}:
-            if chunk:
-                chunks.append(chunk)
-            chunk = []
-            # if word['dep'] in {'compound'}:
-            #     chunk.append(word)
-        if word['bio'] in {'I','B'}:
-            chunk.append(word)
+        if word["pos"] not in { 'CD' }:
+            if word['bio'] in {'O','B'}:
+                if chunk:
+                    chunks.append(chunk)
+                chunk = []
+                # if word['dep'] in {'compound'}:
+                #     chunk.append(word)
+            # if word['bio'] in {'I','B'} or (previous and previous["lemma"] in { 'of' }):
+            if word['bio'] in {'I','B'}:
+                chunk.append(word)
+        previous = word
         i +=1
     return chunks
+
+def find_ngrams(input_list, n):
+    ngram = zip(*[input_list[i:] for i in range(n)])
+    ngram_concat = []
+    for gram in ngram:
+        to_add = ""
+        for elem in gram:
+            to_add += elem
+        ngram_concat.append(to_add)
+    return ngram_concat
 
 def chunk_pos(chunks, pos):
     for chunk in chunks:
@@ -101,6 +115,9 @@ class AnnotConnection:
 
     def __hash__(self):
         return hash(self.__repr__())
+
+def in_gazette(word):
+    return word.lower() in countries or word.lower() in states or word.lower() in cities
 
 def entity_to_loc(entity):
     # print entity["word"]
@@ -139,54 +156,100 @@ class Features:
         # word left to m2
         # word right to m2
         self.feat.append(chunk_phrase(self.m1))
+        self.feat.append(chunk_phrase(self.m1).lower())
         self.feat.append(chunk_phrase(self.m2))
-        if len(self.m1) > 1:
-            self.feat.append(self.m1[-1]['word'])
-        if len(self.m2) > 1:
-            self.feat.append(self.m2[-1]['word'])
+        self.feat.append(chunk_phrase(self.m2).lower())
+        self.feat.append(chunk_phrase(self.m1)+chunk_phrase(self.m2))
+
+        self.feat.append(self.m1[-1]['word'])
+        self.feat.append(self.m1[-1]['word'].lower())
+        self.feat.append(self.m2[-1]['word'])
+        self.feat.append(self.m2[-1]['word'].lower())
         self.feat.append(self.m1[-1]['word'] + self.m2[-1]['word'])
+        self.feat.append(self.m1[-1]['word'].lower() + self.m2[-1]['word'].lower())
         bags_bigrams = []
+        bags = []
         if len(self.m1) > 1:
             for word in self.m1:
-                bags_bigrams.append(word['word'])
+                bags.append(word['word'])
+                bags.append(word['word'].lower())
+        bags_bigrams.extend(bags)
+        # bags_bigrams.extend(find_ngrams(bags, 2))
+        bags = []
         if len(self.m2) > 1:
             for word in self.m2:
-                bags_bigrams.append(word['word'])
+                bags.append(word['word'])
+                bags.append(word['word'].lower())
+        bags_bigrams.extend(bags)
+        # bags_bigrams.extend(find_ngrams(bags, 2))
         self.feat.extend(bags_bigrams)
         m1 = self.m1[0]
         m2 = self.m2[0]
         if m1["id"]-1 in sentence:
             self.feat.append(sentence[m1["id"]-1]["word"])
         else:
-            self.feat.append(None)
+            self.feat.append("Start")
         if m1["id"]+1 in sentence:
             self.feat.append(sentence[m1["id"]+1]["word"])
         else:
-            self.feat.append(None)
+            self.feat.append("End")
         if m2["id"]-1 in sentence:
             self.feat.append(sentence[m2["id"]-1]["word"])
         else:
-            self.feat.append(None)
+            self.feat.append("Start")
         if m2["id"]+1 in sentence:
             self.feat.append(sentence[m2["id"]+1]["word"])
         else:
-            self.feat.append(None)
+            self.feat.append("End")
         entity_left = entity_to_pers(self.m1[-1]["ner"])
-        # if entity_left != "PERSON":
-        #     entity_left = entity_to_loc(self.m1[-1])
+        # # if entity_left != "PERSON":
+        # #     entity_left = entity_to_loc(self.m1[-1])
         entity_right = entity_to_loc(self.m2[-1])
         self.feat.append(entity_left)
         self.feat.append(entity_right)
+        for m2 in self.m2:
+            self.feat.append(m2["word"] + str(in_gazette(m2["word"])))
+        for m1 in self.m1:
+            self.feat.append(m1["word"] + str(in_gazette(m1["word"])))
         self.feat.append(entity_left + "-" + entity_right)
-        self.feat.append(chunk_pos(self.m1, "NN"))
-        self.feat.append(chunk_pos(self.m2, "NN"))
+        self.feat.append(chunk_phrase(self.m1) + str(chunk_pos(self.m1, "NN")))
+        self.feat.append(chunk_phrase(self.m2) + str(chunk_pos(self.m2, "NN")))
         self.feat.append(self.m1[-1]["tag"])
         self.feat.append(self.m2[-1]["tag"])
         start = False
-        for word in sentence:
+        between = []
+        pattern = []
+        for id, word in sentence.iteritems():
+            if word["word"] in {"home", "live", "of"}:
+                pattern.append(word["word"])
             if word == self.m2[0]:
                 break
             if start:
-                self.feat.append(word["word"])
+                between.append(word["word"])
             if not start and word == self.m1[-1]:
                 start = True
+        start = False
+        between.extend(find_ngrams(between, 2))
+        between.extend(find_ngrams(between, 3))
+        self.feat.extend(between)
+        self.feat.extend(pattern)
+        for id, word in sentence.iteritems():
+            if word == self.m2[0]:
+                self.feat.append(word["pos"])
+                break
+            if start:
+                self.feat.append(word["pos"])
+            if not start and word == self.m1[-1]:
+                start = True
+                self.feat.append(word["pos"])
+
+        syns = wn.synsets(chunk_phrase(self.m1), 'n')
+        for ss in syns:
+            for lema in ss.lemma_names():
+                self.feat.append(lema)
+                self.feat.append(lema.capitalize())
+        syns = wn.synsets(chunk_phrase(self.m2), 'n')
+        for ss in syns:
+            for lema in ss.lemma_names():
+                self.feat.append(lema)
+                self.feat.append(lema.capitalize())

@@ -7,14 +7,15 @@ import itertools
 import pickle
 import numpy as np
 import scipy
+import pdb
 
 start_time = time.time()
 TARGET_TAG = "Live_In"
 LOCATION_NER = { 'GPE', 'FACILITY', 'LOC' }
 LOCATION_ALTER_NER = { 'ORG' }
 PERSON_NER = { 'PERSON' }
-LABELS = { 'Live_In' : 1, 'Other_Tag' : 0 }
-
+TAGS = {'OrgBased_In', 'Located_In', 'Work_For', 'Kill', 'Live_In'}
+LABELS =  {'OrgBased_In':5, 'Located_In': 4, 'Work_For' : 3, 'Kill' : 2, "Live_In" : 1, "Other_Tag" : 0 }
 def passed_time(previous_time):
     return round(time.time() - previous_time, 3)
 
@@ -33,7 +34,7 @@ def read_annotation_files(name_file):
     return annotations
 
 def label_or_not(tag):
-    if tag == TARGET_TAG:
+    if tag in TAGS:
         return tag
     return 'Other_Tag'
 
@@ -43,7 +44,14 @@ def build_datas(annotations, sentences):
     labels = []
     for id_sentence, dic in sentences.iteritems():
         sentence = dic['words']
+        # if id_sentence == 1483:
+        #     pdb.set_trace()
         chunk = itertools.permutations(ut.extract_chunks(sentence), 2)
+        # if id_sentence == 1417:
+        #     cs  = list(chunk)
+        #     pdb.set_trace()
+        #     for cpr in cs:
+        #         print cpr
         features_chunks = []
         size = 0
         for chunk_pair in chunk:
@@ -54,10 +62,11 @@ def build_datas(annotations, sentences):
                 connect = ut.AnnotConnection(m1Phrase, m2Phrase)
                 correct, label = False, 0
                 # for key in annot:
-                if (annot.m1 in m1Phrase or m1Phrase in annot.m1) and (annot.m2 in m2Phrase or m2Phrase in annot.m2):
-                    if ut.entity_to_pers(chunk_pair[0][-1]["ner"]) == "PERSON" and ut.entity_to_loc(chunk_pair[1][-1]) == "LOCATION":
-                        if ut.chunk_pos(chunk_pair[0], "NN") and ut.chunk_pos(chunk_pair[1], "NN"):
-                            correct, label = True, tag
+                # if (annot.m1 in m1Phrase or m1Phrase in annot.m1) and (annot.m2 in m2Phrase or m2Phrase in annot.m2):
+                if (annot.m1 == m1Phrase or annot.m1 == m1Phrase + "." or annot.m1 == m1Phrase + " .") and (annot.m2 == m2Phrase or annot.m2 == m2Phrase + "." or annot.m2 == m2Phrase + " ."):
+                    # if ut.entity_to_pers(chunk_pair[0][-1]["ner"]) == "PERSON" and ut.entity_to_loc(chunk_pair[1][-1]) == "LOCATION":
+                        # if ut.chunk_pos(chunk_pair[1], "NN"):
+                    correct, label = True, tag
 
             # if correct:
                 # print m1Phrase, m2Phrase
@@ -77,10 +86,10 @@ def build_datas(annotations, sentences):
                             print feat
                     features.append(features_all[feat])
                 features_array.append(features)
-                if id_sentence == 1483 and correct:
-                    print m1Phrase, ut.entity_to_pers(chunk_pair[0][-1]["ner"])
-                    print m2Phrase, ut.entity_to_loc(chunk_pair[1][-1])
-                    print ut.chunk_pos(chunk_pair[0], "NN"), ut.chunk_pos(chunk_pair[1], "NN")
+                if id_sentence == 35 and correct:
+                    print m1Phrase
+                    print m2Phrase
+                    # print ut.chunk_pos(chunk_pair[0], "NN"), ut.chunk_pos(chunk_pair[1], "NN")
                     print annot
                     print correct, label
                     print features
@@ -92,12 +101,12 @@ def build_datas(annotations, sentences):
     # print features_array
     inflated_feats = []
     for dense in features_array:
-        dense_set = set(dense)
         sparse = np.zeros(len(features_all))
-        for i in dense_set:
+        for i in dense:
             sparse[i] = 1
         inflated_feats.append(sparse)
-    return scipy.sparse.csr_matrix(inflated_feats), np.array(labels), features_all
+    A = np.array(inflated_feats)
+    return scipy.sparse.csr_matrix(A), np.array(labels), features_all
 
 
 def save_model(clf, features):

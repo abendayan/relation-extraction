@@ -8,7 +8,7 @@ import pickle
 import itertools
 import scipy
 start_time = time.time()
-TARGET_TAG = { 1 : "Live_In", 0 : "Other_Tag" }
+TARGET_TAG = { 5: 'OrgBased_In' ,4: 'Located_In', 3: 'Work_For', 2: 'Kill', 1 : "Live_In", 0 : "Other_Tag" }
 TAG_TO_PREDICT = "Live_In"
 LOCATION_NER = { 'GPE', 'FACILITY', 'LOC' }
 LOCATION_ALTER_NER = { 'ORG' }
@@ -24,12 +24,13 @@ def create_annotations_file(output_file, predicted, tagg_info):
     for i, predict in enumerate(predicted):
         sentence, chunk = tagg_info[i]
         left, right = chunk
-        # if sentence == 1483:
-            # print TARGET_TAG[predict]
-            # print chunk
-        if TARGET_TAG[predict] == TAG_TO_PREDICT:
-        # if TARGET_TAG[predict] == TAG_TO_PREDICT or ut.entity_to_loc(left[-1]["ner"]) == "PERSON" and ut.entity_to_loc(right[-1]["ner"]) == "LOCATION":
 
+        if TARGET_TAG[predict] == TAG_TO_PREDICT:
+         # (predict == 0 and (right[0]["ner"] == "LOC" or right[0]["word"] in ut.countries) and len(left) == 1 and left[0]["ner"] == "PERSON") :
+        # if TARGET_TAG[predict] == TAG_TO_PREDICT or ut.entity_to_loc(left[-1]["ner"]) == "PERSON" and ut.entity_to_loc(right[-1]["ner"]) == "LOCATION":
+            if sentence == 35:
+                print predict
+                print chunk
             # print sentence
             to_write += "sent" + str(sentence) + "\t"
 
