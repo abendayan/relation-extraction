@@ -24,7 +24,7 @@ cities = {}
 for c in citiesJson:
     cities[c["name"].lower().replace(" ", "-")] = 1
 
-LOCATIONS = [ 'LOCATION', 'GPE', 'NORP', 'ORG' ]
+LOCATIONS = [ 'LOCATION' ]
 PERSON = ['PERSON']
 def build_corpus(sentences):
     sentences_dic = {}
@@ -208,12 +208,12 @@ class Features:
         # entity based features
         # entity type 1
         self.feat.append(self.m1[-1]["ner"])
-        # self.feat.append(entity_to_pers(self.m1[-1]["ner"]))
+        self.feat.append(entity_to_pers(self.m1[-1]["ner"]))
         # entity 1 head
         self.feat.append(self.m1[-1]['word'])
         # entity type 2
         self.feat.append(self.m2[-1]["ner"])
-        # self.feat.append(entity_to_loc(self.m2[-1]))
+        self.feat.append(entity_to_loc(self.m2[-1]))
         # entity 2 head
         self.feat.append(self.m2[-1]['word'])
         # concatenate types
@@ -251,58 +251,58 @@ class Features:
                 if id+1 in sentence:
                     after1 = sentence[id+1]["word"]
                 start = True
-        # for syntact in syntact_chunk:
-        #     self.feat.append("Base"+syntact)
-        # # word before entity 1
-        # if before1 is None:
-        #     self.feat.append("BeforeEnt1Start")
-        # else:
-        #     self.feat.append("BeforeEnt1"+before1)
-        # if before2 is None:
-        #     self.feat.append("BeforeEnt2Start")
-        # else:
-        #     self.feat.append("BeforeEnt2"+before2)
-        #
-        # if after1 is None:
-        #     self.feat.append("AfterEnt1End")
-        # else:
-        #     self.feat.append("AfterEnt1"+after1)
-        # if after2 is None:
-        #     self.feat.append("AfterEnt2End")
-        # else:
-        #     self.feat.append("AfterEnt2"+after2)
-        #
+        for syntact in syntact_chunk:
+            self.feat.append("Base"+syntact)
+        # word before entity 1
+        if before1 is None:
+            self.feat.append("BeforeEnt1Start")
+        else:
+            self.feat.append("BeforeEnt1"+before1)
+        if before2 is None:
+            self.feat.append("BeforeEnt2Start")
+        else:
+            self.feat.append("BeforeEnt2"+before2)
+
+        if after1 is None:
+            self.feat.append("AfterEnt1End")
+        else:
+            self.feat.append("AfterEnt1"+after1)
+        if after2 is None:
+            self.feat.append("AfterEnt2End")
+        else:
+            self.feat.append("AfterEnt2"+after2)
+
         # # entity level
-        # self.feat.append(name_or_entity(self.m1[-1]))
-        # self.feat.append(name_or_entity(self.m2[-1]))
-        #
-        # # synonyms
-        # syns = wn.synsets(chunk_phrase(self.m1), 'n')
-        # if len(syns) > 0:
-        #     list_sim = [lemma.name() for synset in syns[0].hyponyms() for lemma in synset.lemmas()]
-        #     for sim in list_sim:
-        #         self.feat.append(sim)
-        # syns = wn.synsets(chunk_phrase(self.m2), 'n')
-        # if len(syns) > 0:
-        #     list_sim = [lemma.name() for synset in syns[0].hyponyms() for lemma in synset.lemmas()]
-        #     for sim in list_sim:
-        #         self.feat.append(sim)
-        # dep = self.m1[0]["parent"]
-        # while dep != 0 and dep != self.m2[-1]["id"]:
-        #     self.feat.append(sentence[dep]["word"])
-        #     dep = sentence[dep]["parent"]
-        # dep = self.m2[-1]["parent"]
-        # while dep != 0 and dep != self.m1[0]["id"]:
-        #     self.feat.append(sentence[dep]["word"])
-        #     dep = sentence[dep]["parent"]
-        #
+        self.feat.append(name_or_entity(self.m1[-1]))
+        self.feat.append(name_or_entity(self.m2[-1]))
+
+        # synonyms
+        syns = wn.synsets(chunk_phrase(self.m1), 'n')
+        if len(syns) > 0:
+            list_sim = [lemma.name() for synset in syns[0].hyponyms() for lemma in synset.lemmas()]
+            for sim in list_sim:
+                self.feat.append(sim)
+        syns = wn.synsets(chunk_phrase(self.m2), 'n')
+        if len(syns) > 0:
+            list_sim = [lemma.name() for synset in syns[0].hyponyms() for lemma in synset.lemmas()]
+            for sim in list_sim:
+                self.feat.append(sim)
+        dep = self.m1[0]["parent"]
+        while dep != 0 and dep != self.m2[-1]["id"]:
+            self.feat.append(sentence[dep]["word"])
+            dep = sentence[dep]["parent"]
+        dep = self.m2[-1]["parent"]
+        while dep != 0 and dep != self.m1[0]["id"]:
+            self.feat.append(sentence[dep]["word"])
+            dep = sentence[dep]["parent"]
+
         for word in self.m1:
-        #     if is_city(word["word"]):
-        #         self.feat.append("City_"+word["word"]+"_1")
+            if is_city(word["word"]):
+                self.feat.append("CityLeft"+word["word"])
         #     else:
         #         self.feat.append("City_"+word["word"]+"_0")
-        #     if is_state(word["word"]):
-        #         self.feat.append("State_"+word["word"]+"_1")
+            if is_state(word["word"]):
+                self.feat.append("StateLeft"+word["word"])
         #     else:
         #         self.feat.append("State_"+word["word"]+"_0")
             if is_country(word["word"]):
@@ -311,12 +311,12 @@ class Features:
         #         self.feat.append("Country_"+word["word"]+"_0")
         #
         for word in self.m2:
-            # if is_city(word["word"]):
-            #     self.feat.append("City_"+word["word"]+"_1")
+            if is_city(word["word"]):
+                self.feat.append("CityRight"+word["word"])
             # else:
             #     self.feat.append("City_"+word["word"]+"_0")
-            # if is_state(word["word"]):
-            #     self.feat.append("State_"+word["word"]+"_1")
+            if is_state(word["word"]):
+                self.feat.append("StateRight"+word["word"])
             # else:
             #     self.feat.append("State_"+word["word"]+"_0")
             if is_country(word["word"]):

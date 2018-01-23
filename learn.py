@@ -15,8 +15,9 @@ TARGET_TAG = "Live_In"
 LOCATION_NER = { 'GPE', 'FACILITY', 'LOC' }
 LOCATION_ALTER_NER = { 'ORG' }
 PERSON_NER = { 'PERSON' }
-TAGS = {'Live_In'}
-LABELS =  { "Live_In" : 1, "Other_Tag" : 0 }
+TAGS = {'OrgBased_In', 'Located_In', 'Work_For', 'Kill', 'Live_In'}
+# TAGS = {'Live_In'}
+LABELS =   {'OrgBased_In':5, 'Located_In': 4, 'Work_For' : 3, 'Kill' : 2, "Live_In" : 1, "Other_Tag" : 0 }
 def passed_time(previous_time):
     return round(time.time() - previous_time, 3)
 
@@ -56,10 +57,10 @@ def build_datas(annotations, sentences):
                 m2Phrase = ut.chunk_phrase(chunk_pair[1])
                 connect = ut.AnnotConnection(m1Phrase, m2Phrase)
                 correct, label = False, 0
-                # if (annot.m1 == m1Phrase or annot.m1 == m1Phrase + "." or annot.m1 == m1Phrase + " .") \
-                # and (annot.m2 == m2Phrase or annot.m2 == m2Phrase + "." or annot.m2 == m2Phrase + " ."):
-                if (annot.m1 in m1Phrase or m1Phrase in annot.m1) and \
-                (annot.m2 in m2Phrase or m2Phrase in annot.m2):
+                if (annot.m1 == m1Phrase or annot.m1 == m1Phrase + "." or annot.m1 == m1Phrase + " .") \
+                and (annot.m2 == m2Phrase or annot.m2 == m2Phrase + "." or annot.m2 == m2Phrase + " ."):
+                # if (annot.m1 in m1Phrase or m1Phrase in annot.m1) and \
+                # (annot.m2 in m2Phrase or m2Phrase in annot.m2):
                 # and ut.entity_to_loc(chunk_pair[1][-1]) == "LOCATION":
                     correct, label = True, tag
 
