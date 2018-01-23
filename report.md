@@ -46,6 +46,10 @@ clean annotations:
 **Prec accuracy: 94,7%**
 **Recall accuracy: 40,9%**
 
+
+
+############## remarks
+learning for all the tags hurts the performance
 ### Analysis
 #### Errors on rules
 1. The type of errors that I see, are relations that have too many values in person / location

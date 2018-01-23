@@ -15,8 +15,8 @@ TARGET_TAG = "Live_In"
 LOCATION_NER = { 'GPE', 'FACILITY', 'LOC' }
 LOCATION_ALTER_NER = { 'ORG' }
 PERSON_NER = { 'PERSON' }
-TAGS = {'OrgBased_In', 'Located_In', 'Work_For', 'Kill', 'Live_In'}
-LABELS =  {'OrgBased_In':5, 'Located_In': 4, 'Work_For' : 3, 'Kill' : 2, "Live_In" : 1, "Other_Tag" : 0 }
+TAGS = {'Live_In'}
+LABELS =  { "Live_In" : 1, "Other_Tag" : 0 }
 def passed_time(previous_time):
     return round(time.time() - previous_time, 3)
 

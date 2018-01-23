@@ -10,7 +10,7 @@ import scipy
 import pdb
 from sklearn.externals import joblib
 start_time = time.time()
-TARGET_TAG = { 5: 'OrgBased_In' ,4: 'Located_In', 3: 'Work_For', 2: 'Kill', 1 : "Live_In", 0 : "Other_Tag" }
+TARGET_TAG = {1: "Live_In", 0 : "Other_Tag" }
 TAG_TO_PREDICT = "Live_In"
 LOCATION_NER = { 'GPE', 'FACILITY', 'LOC' }
 LOCATION_ALTER_NER = { 'ORG' }
@@ -26,7 +26,8 @@ def create_annotations_file(output_file, predicted, tagg_info):
     for i, predict in enumerate(predicted):
         sentence, chunk = tagg_info[i]
         left, right = chunk
-        if TARGET_TAG[predict] == TAG_TO_PREDICT:
+        if TARGET_TAG[predict] == TAG_TO_PREDICT or (ut.entity_to_pers(left[-1]["ner"]) == "PERSON"\
+        and ut.in_gazette(ut.chunk_phrase(right))):
              # and (ut.entity_to_loc(right[-1])=="LOCATION" or ut.in_gazette(ut.chunk_phrase(right))):
                 # print sentence
                 # print ut.chunk_phrase(left)
