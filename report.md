@@ -1,55 +1,49 @@
 # Relation Extraction - Report
 > Adele Bendayan - 336141056
 
-## Process
-I first tried a rule based system, but I was stuck on low accuracy, so I tried a feature extraction system.
+** I worked on the Live_In relation **
+## Description of the system
+I implemented a mix of feature learning and rule based approach.
+First I broke each sentence in the training file into chunk and created features, and than I learned on them.
 
-**Precision accuracy: 76,6%**
-**Recall accuracy: 51,1%**
+This is done in the learn.py.
+### Feature based learning
+#### Features used
+* entity of the head words
+* the head words
+* concatenation of the entities
+* the pos tags of all the words in the chunk
+* the words before and after each chunk (if exist)
+* the words between the 2 chunks
+* the pos tags of the words between the two chunks
+* if the pos tag of the words chunk start with NN (a type of noun), I added a feature with the tag NN, if not with the pos tag of the word
+* with wordnet I got all the synonyms of each words, and added them as feature
+* the dependency tree between the words
+* I used json files to get the countries, cities, state in the U.S, and for each word, I check if it's a country a city or a state, if yes, I added this as a feature
 
-Adding a check to see that the words are person-location change the accuracy to:
-**Precision accuracy: 88,4%**
-**Recall accuracy: 45,8%**
+Once I got all of this features, I check if the chunk is connected in the training annotation file, if it is, I mark it as correct and give as a tag the tag of the connection (any connection that exist in the training file, not just Live_In).
 
-Added NORP in location
-**Prec accuracy: 79,2%**
-**Recall accuracy: 48,8%**
+I train with an SVC classifier.
 
-Not JJ
-**Prec accuracy: 88,57%**
-**Recall accuracy: 46,5**
+### Rectification of errors
+When extracting the relations, to compensate the error of the classifier, I implemented a rule based approach.
 
-Pos is NN*:
-**Prec accuracy: 92,3%**
-**Recall accuracy: 45,0%**
+The idea is, I first use the classifier, if I get the tag of Live_In I added the chunks in the annotations file, if I get the Other_Tag (the classifier didn't succeed in placing the relation in one of the tags that we learned on), then I go through the rules:
 
-When looking at the precision errors, I realized that some of the errors are "." in the end, I decided to ignore them.
-What is missing are stuff like:
-Prince + name
-Mrs + name
+#### Patterns
+The left chunk should be a person and the right chunk should be a location (or a tag location or in countries cities, or state).
+If that is the case, than we go through the rules, if not, we throw the chunk away.
+* If before the first chunk we have a "work" word than we accept the rule
+* If between the words we see words like "live in", "stay in", "live on"... than we accept the words
+* If we have words like "home of", "governor of" ("Reith Chuol governor of the Upper Nile region")
+* If we see words like "manager" we do not accept the chunk (it probably is correct for Work_For)
 
-**Prec accuracy: 95,9%**
-**Recall accuracy: 34,4%**
+## Error analysis
+Most of the error in prediction are confusion with the tag Work_For or OrgBased_In: tags that also have location in them. I didn't succeed in lowering this type of error without hurting the recall.
 
-Added cities
+The recall errors mostly came from location that are not tagged as location but as GPE or other, adding those tags to the possible location hurt the precision and the recall, I think because it's harder for the classifier to learn.
 
-**Prec accuracy: 96,2%**
-**Recall accuracy: 39,69%**
-
-Added wordnet:
-
-**Prec accuracy: 92,9%**
-**Recall accuracy: 40,4%**
-
-clean annotations:
-
-**Prec accuracy: 94,7%**
-**Recall accuracy: 40,9%**
-
-
-
-############## remarks
-learning for all the tags hurts the performance
-### Analysis
-#### Errors on rules
-1. The type of errors that I see, are relations that have too many values in person / location
+## Results
+Relation  | Dev Recall | Dev Prec | Dev F1 | Test Recall| Test Prec | Test F1
+-------- | --|-|-|-|-|
+Live_In  | 0.27 | 0.37 | 0.32 | 0.60 | 0.80 | 0.68

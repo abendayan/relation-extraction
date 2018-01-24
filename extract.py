@@ -28,47 +28,42 @@ def check_entity_chunk_phrase(phrase):
 def connected(sentence, left, right):
     pattern = ["from", "of"]
     not_in = ["manager"]
-    pattern_of = ["home"]
-    pattern_in = ["live", "living", "stay", "staying", "lived", "representative"]
-    if check_entity_chunk_phrase(left) and (ut.in_gazette(ut.chunk_phrase(right) or ut.entity_to_loc(right[-1]))):
-        start = False
-        found = False
-        for id, word in sentence.iteritems():
-            if word["id"] == left[-1]["id"]:
-                start = True
-            if word["id"] == right[0]["id"]:
-                break
-            if start:
-                if word["lemma"] in pattern_in and id+1 in sentence:
-                    if sentence[id+1]["lemma"] == "in":
+    pattern_of = ["home", "governor"]
+    pattern_in = ["live", "living", "stay", "staying", "representative"]
+    work = {"spokesman", "spokeswoman", "diver", "Lt.", "representative", "governor", "manager"}
+    if not ut.chunk_phrase(left).endswith("'s'"):
+        if check_entity_chunk_phrase(left) and (ut.in_gazette(ut.chunk_phrase(right) or ut.entity_to_loc(right[-1]))):
+            start = False
+            found = False
+            for id, word in sentence.iteritems():
+                if word["id"] == left[0]["id"]:
+                    if id-1 in sentence and sentence[id-1]["lemma"] in work:
                         found = True
-                if word["lemma"] in pattern_of and id+1 in sentence:
-                    if sentence[id+1]["lemma"] == "of":
-                        found = True
-                if word["lemma"] in pattern:
-                    if id-1 in sentence:
-                        if not sentence[id-1]["lemma"] in not_in:
+                if word["id"] == left[-1]["id"]:
+                    start = True
+                if  word["id"] == right[0]["id"]:
+                    break
+                if start:
+                    if word["lemma"] in pattern_in and id+1 in sentence:
+                        if sentence[id+1]["lemma"] in {"in", "on"}:
                             found = True
-                # if ut.in_gazette(word["lemma"]):
-                #     found = False
-        return found
-    #     parent = right[0]["parent"]
-    #     id_right = right[0]["id"]
-    #     found = False
-    #     while parent != left[-1]["id"] and parent != 0:
-    #         parent = sentence[parent]["parent"]
-    #         if parent != 0 and sentence[parent]["lemma"] in pattern:
-    #             found = True
-    #         id_right = parent
-    #     parent = left[0]["parent"]
-    #     id_left = left[0]["id"]
-    #     while parent != right[-1]["id"] and parent != 0:
-    #         parent = sentence[parent]["parent"]
-    #         if parent != 0 and sentence[parent]["lemma"] in pattern:
-    #             found = True
-    #         id_left = parent
-    #     if id_right == id_left:
-    #         return found
+                    if word["lemma"] in pattern_of and id+1 in sentence:
+                        if sentence[id+1]["lemma"] == "of":
+                            found = True
+                    if word["lemma"] in pattern:
+                        if id-1 in sentence:
+                            if not sentence[id-1]["lemma"] in not_in:
+                                # found = True
+                                if id+1 in sentence:
+                                    if ut.in_gazette(sentence[id+1]["lemma"]):
+                                        found = True
+                                    if sentence[id+1]["tag"] == "ADJ":
+                                        if id+2 in sentence:
+                                            if ut.in_gazette(sentence[id+2]["lemma"]):
+                                                found = True
+                            else:
+                                found = False
+            return found
     return False
 
 def create_annotations_file(output_file, predicted, tagg_info, sentences):
@@ -79,14 +74,6 @@ def create_annotations_file(output_file, predicted, tagg_info, sentences):
         id_sentence, chunk = tagg_info[i]
         left, right = chunk
         if predict == 1 or (predict == 0 and connected(sentences[id_sentence]["words"], left, right)):
-             # and (ut.entity_to_loc(right[-1])=="LOCATION" or ut.in_gazette(ut.chunk_phrase(right))):
-                # print sentence
-                # print ut.chunk_phrase(left)
-                # # if sentence == 1147:
-                # #     pdb.set_trace()
-                # #     ut.entity_to_loc(right[-1])
-                # print ut.chunk_phrase(right)
-                # print ut.entity_to_loc(right[-1])
             to_write += "sent" + str(id_sentence) + "\t"
             to_write += ut.chunk_phrase(left)
             to_write += "\t" + TAG_TO_PREDICT + "\t"
@@ -110,8 +97,6 @@ def build_datas(sentences, features_all):
             for feat in feat_sent.feat:
                 if feat in features_all:
                     features.append(features_all[feat])
-                else:
-                    features.append(features_all["UNK"])
 
             features_array.append(features)
             tagging_info.append((id_sentence, chunk_pair))
@@ -128,7 +113,7 @@ if __name__ == '__main__':
     output_file = sys.argv[2]
     type_input = input_file.split(".")[-1]
     if type_input != "txt":
-        print "The input file " + input_file + " is not in the format .processed"
+        print "The input file " + input_file + " is not in the format .txt"
         sys.exit(0)
     sentences = ut.build_corpus(open(input_file, "r").read().split("\n"))
     print "Corpus read"

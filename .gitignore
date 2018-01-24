@@ -1,5 +1,4 @@
 *.processed
 *.txt
 *.annotations
-*.pkl
 *.pyc

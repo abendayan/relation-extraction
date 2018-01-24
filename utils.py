@@ -24,10 +24,10 @@ cities = {}
 for c in citiesJson:
     cities[c["name"].lower().replace(" ", "-")] = 1
 
-LOCATIONS = [ 'LOCATION' ]
+LOCATIONS = [ 'LOC', 'GPE', 'ORG' ]
 PERSON = ['PERSON']
 def build_corpus(sentences):
-    sentences_dic = {}
+    sentences_dic = OrderedDict()
     for sentence in sentences:
         if sentence != "":
             id_number = int(sentence.split("\t")[0].replace("sent", ""))
@@ -35,14 +35,12 @@ def build_corpus(sentences):
             sentences_dic[id_number] = OrderedDict()
             sentences_dic[id_number]["text"] = sentence.split("\t")[1]
             sentences_dic[id_number]["words"] = {}
-            # sentenceData = []
-            # sentenceDic = {}
 
             for i, word in enumerate(parsed):
-                head_id = word.head.i + 1  # we want ids to be 1 based
-                if word == word.head:  # and the ROOT to be 0.
+                head_id = word.head.i + 1
+                if word == word.head:
                     assert (word.dep_ == "ROOT"), word.dep_
-                    head_id = 0  # root
+                    head_id = 0
 
                 words = {
                     "id": word.i + 1,
@@ -56,14 +54,6 @@ def build_corpus(sentences):
                     "ner": word.ent_type_
                 }
                 sentences_dic[id_number]["words"][words["id"]] = words
-        #     guh
-    # for word in words:
-    #     if word != "":
-    #         sentence.append(word)
-    #     else:
-    #         if sentence != []:
-    #             build_sentence(sentence, sentences)
-    #         sentence = []
     return sentences_dic
 
 def build_sentence(sentence, sentences):
@@ -108,8 +98,6 @@ def extract_chunks(words):
     previous = None
     for id, word in words.iteritems():
         if word['bio'] in {'O','B'}:
-            # if word['bio'] != '0' and id-1 in words and words[id-1]["parent"] == id and words[id-1]["tag"] == "PROPN":
-            #     chunk.append(relevent_inf(words[id-1]))
             if word['bio'] == '0' and word['dep'] == 'compound':
                 chunk.append(word)
             if chunk:
@@ -170,21 +158,9 @@ def is_city(word):
 def is_state(word):
     word = word.lower().replace(" ", "-")
     return word in states
-def entity_to_loc(entity):
-    # syns = wn.synsets(entity["word"], 'n')
-    # without_last = entity["lemma"][:-1].replace(" ", "-")
-    # word = entity["lemma"].replace(" ", "-")
-    # if not in_gazette(word):
-    #     if without_last in countries or without_last in cities or without_last in states:
-    #         return entity['ner']
-    # if len(syns) > 0:
-    #     list_sim = [lemma.name() for synset in syns[0].hyponyms() for lemma in synset.lemmas()]
-    #     for sim in list_sim:
-    #         if sim in countries or sim in cities or sim in states:
-    #             return "LOCATION"
 
+def entity_to_loc(entity):
     if entity["ner"] in LOCATIONS :
-    # if entity["ner"] in LOCATIONS or in_gazette(word):
         return "LOCATION"
     return entity["ner"]
 
@@ -218,8 +194,6 @@ class Features:
         self.feat.append(self.m2[-1]['word'])
         # concatenate types
         self.feat.append(self.m1[-1]["ner"] + self.m2[-1]["ner"])
-        # concatenate head
-        # self.feat.append(self.m1[-1]['word'] + self.m2[-1]['word'])
 
         for word in self.m1:
             self.feat.append(word["pos"])
@@ -299,30 +273,14 @@ class Features:
         for word in self.m1:
             if is_city(word["word"]):
                 self.feat.append("CityLeft"+word["word"])
-        #     else:
-        #         self.feat.append("City_"+word["word"]+"_0")
             if is_state(word["word"]):
                 self.feat.append("StateLeft"+word["word"])
-        #     else:
-        #         self.feat.append("State_"+word["word"]+"_0")
             if is_country(word["word"]):
                 self.feat.append("CountryLeft"+word["word"])
-        #     else:
-        #         self.feat.append("Country_"+word["word"]+"_0")
-        #
         for word in self.m2:
             if is_city(word["word"]):
                 self.feat.append("CityRight"+word["word"])
-            # else:
-            #     self.feat.append("City_"+word["word"]+"_0")
             if is_state(word["word"]):
                 self.feat.append("StateRight"+word["word"])
-            # else:
-            #     self.feat.append("State_"+word["word"]+"_0")
             if is_country(word["word"]):
                 self.feat.append("CountryRight"+word["word"])
-            # else:
-                # self.feat.append("Country_"+word["word"]+"_0")
-
-        if random.randint(1, 100) == 1:
-            self.feat.append("UNK")

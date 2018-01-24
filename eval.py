@@ -22,12 +22,9 @@ def read_annotation_files(name_file):
                 person = person.replace("\t", "")
                 location = location.replace("\t", "")
                 annotations.append(id_text + " " +  person + " " + TARGET_TAG + " " + location )
-                # annotations[id_text]["person"] = person
-                # annotations[id_text]["location"] = location
     return annotations
 
 def error_analysis(mistakes):
-    # to_analyse = mistakes[:5]
     to_extract = min(5, len(mistakes))
     to_analyse = random.sample(mistakes, to_extract)
     for errors in to_analyse:
@@ -42,7 +39,6 @@ def precision(gold_data, pred_data):
     for pred in pred_data:
         left, right = pred.split(" " + TARGET_TAG)
         other_pred = left + ". " + TARGET_TAG + right
-        # print other_pred
         if pred in gold_data or pred + "." in gold_data or other_pred in gold_data:
             good += 1
         else:
